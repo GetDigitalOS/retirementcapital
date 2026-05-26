@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Generated** | 2026-03-22 |
+| **Generated** | 2026-05-24 |
 | **Method** | Auto-classified from project documentation |
 | **Result** | **Tier 1 — Static/Marketing** (0/10 yes) |
 
@@ -10,16 +10,16 @@
 
 | # | Question | Answer | Rationale |
 |---|----------|--------|-----------|
-| auth | User Authentication | No | No user accounts or login — it's a purely client-side calculator with no personalization. |
-| data | Data Persistence | No | No database or persistence; all state lives in the DOM and nothing is saved. |
-| roles | Multi-Role Access | No | No user roles or permissions — everyone sees the same single-page calculator. |
-| integrations | Third-Party Integrations | No | Only external dependency is Chart.js via CDN; no APIs, payment processors, or services. |
-| realtime | Real-Time Features | No | No live updates, websockets, or collaborative features — calculations run on button click. |
-| sensitive | Transaction Sensitivity | No | No data is transmitted or stored; financial inputs exist only in the browser session. |
-| scale | Scale Expectations | No | Static client-side HTML/CSS/JS with no server — scale is irrelevant. |
-| team | Team Size | No | Simple three-file project with no build system, suitable for a single developer. |
-| longevity | Longevity | No | A self-contained calculator with no dependencies to maintain and no evolving feature set. |
-| ai | AI/LLM Features | No | Pure mathematical calculation with no AI or LLM features. |
+| auth | User Authentication | No | No user accounts, login, or personalized data — purely a stateless client-side calculator. |
+| data | Data Persistence | No | Explicitly no persistence; all state lives in the DOM with no backend or localStorage. |
+| roles | Multi-Role Access | No | Single anonymous user interaction with no permission model of any kind. |
+| integrations | Third-Party Integrations | No | Only Chart.js via CDN for rendering; no external APIs, payment processors, or services. |
+| realtime | Real-Time Features | No | Calculations run on page load and button click — no websockets, live updates, or collaboration. |
+| sensitive | Transaction Sensitivity | No | Inputs are hypothetical retirement figures computed locally; no PII, payments, or financial accounts are stored or transmitted. |
+| scale | Scale Expectations | No | Static HTML/CSS/JS opened directly in a browser with no server load to scale. |
+| team | Team Size | No | Tiny single-file project with no indication of multiple developers or team workflow. |
+| longevity | Longevity | No | Simple calculator utility with no roadmap, phases, or maintenance plan suggesting multi-year evolution. |
+| ai | AI/LLM Features | No | Pure deterministic financial math; no AI, LLM, or ML features present or planned. |
 
 ## Tier Determination
 

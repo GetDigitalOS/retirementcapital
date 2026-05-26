@@ -1,117 +1,171 @@
-﻿# Compliance Report â€” Retirement Capital Calculator
+# Compliance Report — Retirement Capital Calculator
 
-**Date:** 2026-03-22
-**Tier:** 1 â€” Static/Marketing
-**Framework Version:** Universal Web Development Principles
+**Date:** 2026-05-23
+**Tier:** 1 — Static/Marketing (per `PROJECT_CLASSIFICATION.md`)
+**Framework Version:** Universal Web Development Principles v4.03.01 (`canonical/references/Universal_Web_Development_Principles.md`)
 
 ## Summary
 
 | Status | Count |
 |--------|-------|
-| âœ… Met | 7 |
-| âš ï¸ Partial | 8 |
-| âŒ Not Met | 6 |
-| â¬œ Not Applicable | 5 |
+| ✅ Met | 9 |
+| ⚠️ Partial | 11 |
+| ❌ Not Met | 14 |
+| ⬜ Not Applicable | 5 |
 
-**Overall Compliance:** 71% of applicable principles met or partially met (15/21)
+**Overall Compliance:** 59% of applicable principles met or partially met (20/34). Down from 71% at the 2026-03-22 audit because the v4 framework adds SEO Operations and Observability bands to Tier 1 (GSC, Bing/IndexNow, Plausible, MXToolbox gate) that this project does not meet.
 
 ## Critical Gaps (Fix Before Launch)
 
-1. **âŒ Input Validation** â€” No client-side validation beyond HTML `required`; negative values, zero years, and extreme rates produce incorrect or meaningless results.
-2. **âŒ XSS via innerHTML** â€” `script.js:172` uses `innerHTML` to render table data. While current data is self-generated (not user-sourced external data), this pattern is a baseline security concern for any future extension.
-3. **âŒ Accessibility: Keyboard Navigation** â€” Toggle buttons injected via `innerHTML` have no focus management, no ARIA roles, and no visible focus indicators in CSS.
-4. **âŒ Accessibility: Missing Landmark Regions** â€” No `<main>`, `<header>`, `<footer>`, or `<nav>` elements; screen readers cannot navigate by region.
-5. **âŒ SEO: Missing Meta Tags** â€” No `<meta name="description">`, no Open Graph tags, no canonical URL.
-6. **âŒ Responsive Design** â€” No media queries; inline `display: flex` layout breaks on mobile; `max-width: 600px` on body clips chart and tables.
+1. **🔴 Project Hub tier mismatch** — Hub registry has `"tier": "unclassified"` while `PROJECT_CLASSIFICATION.md` says Tier 1. `existing_state.claude_md` and `existing_state.settings_json` are both `false` in the registry but `CLAUDE.md` is present and `.claude/` is scaffolded (template only — no real `settings.json`). Run `/scaffold` or hub re-sync to reconcile.
+2. **🔴 Broken Cloudflare Pages deploy workflow** — `.github/workflows/deploy.yml` calls the shared `deploy-cloudflare-pages.yml` with `project-name: ""` (empty), `build-command: "npm run build"`, and `output-directory: "dist"`. There is no `package.json`, no build script, and no `dist/` folder. The first push to `main` or `dev` will fail. Either fix the workflow to deploy static files directly (no build, output `.`) or add a real `package.json` + build step.
+3. **🔴 No server-side input validation pathway** — All inputs go through `parseFloat`/`parseInt` with no bounds. Negative income, zero years, NaN, and >100% rates produce garbage outputs. HTML inputs have no `min`/`max`. (`script.js:20-23`, `index.html:17-26`)
+4. **🔴 No semantic landmarks** — Page is `<body> > <h1> > <div>`. No `<main>`, `<header>`, `<footer>`, `<section>`, or `<h2>`s. Screen-reader users cannot navigate by region. (`index.html`)
+5. **🔴 No focus indicators** — CSS has no `:focus-visible` rules. Keyboard users cannot see where they are. Toggle buttons are injected via `innerHTML` with no `aria-pressed` state. (`styles.css`, `script.js:172-177`)
+6. **🔴 Missing SEO meta + Open Graph** — No `<meta name="description">`, no `og:*`, no `twitter:card`, no canonical URL. (`index.html:4-10`)
+7. **🔴 Not responsive** — `body { max-width: 600px }` plus a hardcoded two-column `display: flex` clips the chart and tables on mobile. No `@media` queries. The 400×400 canvas overflows narrow viewports.
+8. **🔴 No analytics / no pre-launch DNS gate** — Tier 1 v4 requires Plausible (`NEXT_PUBLIC_PLAUSIBLE_DOMAIN`) and an MXToolbox/Google Workspace Toolbox pre-launch check for any custom domain. Neither exists.
 
 ## Detailed Results
 
 ### Tier 1: Security Fundamentals
 
-- â¬œ **HTTPS Everywhere** â€” Not applicable; static files with no deployment config in repo. Depends on hosting provider (GitHub Pages, Netlify, etc. all enforce HTTPS by default).
-- â¬œ **Security Headers** â€” Not applicable; no server or deployment config to set headers. Would be relevant when deployed (CSP, X-Frame-Options, etc.).
-- âŒ **Input Validation** â€” Form inputs use `type="number"` and `required` but there is no JavaScript validation. `parseFloat`/`parseInt` silently accept negative values, zero, and NaN without guard checks. No `min`/`max` attributes on inputs. See `script.js:20-23`.
-- âš ï¸ **XSS Prevention** â€” `innerHTML` is used at `script.js:172` to inject table HTML. Data is self-computed (not from external sources), so the current risk is low, but the pattern is fragile. `formatCurrency()` uses `Intl.NumberFormat` which is safe, but the template literal concatenation in table rows (`script.js:159-160`, `167-168`) does not explicitly escape values.
-- âœ… **Dependency Hygiene** â€” Single external dependency (Chart.js via CDN). No npm packages, no known vulnerabilities. CDN uses `jsdelivr.net` which is a reputable source.
+- ⬜ **HTTPS Everywhere** — N/A locally; Cloudflare Pages enforces HTTPS automatically when the deploy succeeds. Workflow currently broken (see Critical #2).
+- ⬜ **Security Headers** — N/A in repo; would be set via `_headers` on Cloudflare Pages. No `_headers` file exists. CSP/HSTS/X-Frame-Options not configured.
+- ❌ **Input Validation** — `parseFloat`/`parseInt` only, no guard against negatives, zero years, NaN, or absurd rates. No `min`/`max` HTML attributes. (`script.js:20-23`)
+- ✅ **Dependency Hygiene** — Single CDN dependency (Chart.js via jsdelivr). No npm, so no `npm audit` exposure, but also no version pin (loads `chart.js` latest — silent breakage risk).
 
-### Tier 1: Design System
+### Tier 1: Design System Basics
 
-- âš ï¸ **Consistent Styling** â€” CSS file provides basic consistent styling for form elements and buttons. However, 4 inline `style=""` attributes in `index.html` (lines 13, 14, 33, 38) break separation of concerns.
-- âš ï¸ **Typography & Spacing** â€” Arial sans-serif font with reasonable spacing. No design tokens, no CSS custom properties. Color palette is ad-hoc (`#4CAF50`, `#45a049`, `#333`, `#ccc`).
-- âœ… **Color Contrast** â€” Primary text is `#333` on white (contrast ratio ~12.6:1, passes AAA). Button text is white on `#4CAF50` (contrast ratio ~3.2:1, passes AA for large text but fails AA for normal text â€” borderline).
+- ❌ **Semantic Tokens** — None. Raw hex values (`#4CAF50`, `#45a049`, `#333`, `#ccc`) used directly. No CSS custom properties.
+- ❌ **Token Hierarchy** — No primitives/semantic/component split.
+- ⚠️ **Consistent Spacing Scale** — Ad-hoc `20px`/`10px`/`15px`/`8px`. Not a deliberate scale.
+- ⚠️ **Typography Scale** — One font (Arial fallback), no defined size scale beyond `1.2em` on the result line.
+- ⬜ **Icon System** — N/A; no icons in use.
+- ❌ **Responsive Breakpoint Strategy** — No breakpoints, no `clamp()`, no container queries. Mobile is broken.
 
 ### Tier 1: Performance
 
-- âœ… **Minimal Payload** â€” Three small files (HTML ~1KB, CSS ~0.4KB, JS ~5KB) plus Chart.js CDN (~200KB). Acceptable for a single-page tool.
-- âš ï¸ **Render-Blocking Resources** â€” `styles.css` in `<head>` is appropriate, but `Chart.js` script in `<head>` (line 9) blocks rendering. Should use `defer` or `async`, or move to bottom of `<body>`.
-- âœ… **No Unnecessary Dependencies** â€” Only Chart.js is loaded, and it's essential for the chart feature.
-- â¬œ **Image Optimization** â€” Not applicable; no images in the project.
+- ✅ **Minimal Payload** — HTML ~1.4KB, CSS ~0.5KB, JS ~6.8KB, plus Chart.js CDN (~200KB).
+- ⚠️ **Render-Blocking Resources** — Chart.js loaded in `<head>` with no `defer`/`async` (`index.html:9`). Blocks first paint.
+- ⬜ **Asset Optimization** — N/A; no images.
+- ⬜ **Lazy Loading** — N/A; no offscreen images or below-fold heavy resources.
+- ✅ **CDN Delivery** — jsdelivr for Chart.js; Cloudflare Pages will edge-serve the static files.
+- ⚠️ **Core Web Vitals Targets** — Not measured. No Lighthouse CI configured. Render-blocking Chart.js and unpinned CDN risk LCP regressions.
 
-### Tier 1: Accessibility
+### Tier 1: Accessibility (WCAG 2.1 AA)
 
-- âœ… **Language Attribute** â€” `<html lang="en">` is set correctly (`index.html:3`).
-- âœ… **Form Labels** â€” All 4 inputs have associated `<label for="...">` elements with matching `id` attributes.
-- âŒ **Semantic HTML / Landmarks** â€” No `<main>`, `<header>`, `<footer>`, or `<section>` elements. Page is flat `<body> > <h1> > <div>` structure. Screen readers cannot navigate by region.
-- âŒ **Keyboard Navigation & Focus** â€” No `:focus` or `focus-visible` styles in CSS. Toggle buttons injected via `innerHTML` have no `aria-pressed` or role attributes. Chart (`<canvas>`) has no text alternative.
-- âš ï¸ **Heading Hierarchy** â€” Single `<h1>` is correct. However, tables and chart sections have no heading (`<h2>`) to structure the page for screen readers.
-- â¬œ **Alt Text for Images** â€” Not applicable; no images.
+- ✅ **Language Attribute** — `<html lang="en">` (`index.html:3`).
+- ✅ **Form Labels** — All 4 inputs have associated `<label for="...">` (`index.html:16-26`).
+- ❌ **Semantic HTML / Landmarks** — No `<main>`, `<header>`, `<footer>`. Flat structure.
+- ❌ **Keyboard Navigation & Focus Indicators** — No `:focus-visible` styles in `styles.css`. Toggle buttons created via `innerHTML` (`script.js:172-177`) have no `aria-pressed`, no role hint.
+- ⚠️ **Heading Hierarchy** — Single `<h1>`. Results, chart, and tables have no `<h2>` to delineate sections for screen-reader navigation.
+- ❌ **Color Contrast** — Button text white on `#4CAF50` has ratio ≈3.2:1 — fails AA for normal text (needs 4.5:1). Primary `#333` body on white is fine (~12.6:1).
+- ⬜ **Alt Text** — N/A; no `<img>` elements.
+- ❌ **Reduced Motion** — Chart.js animations run unconditionally. No `prefers-reduced-motion` handling. Initialize Chart.js with `animation: false` when the media query matches.
 
-### Tier 1: SEO
+### Tier 1: SEO Fundamentals
 
-- âŒ **Meta Tags** â€” No `<meta name="description">`, no Open Graph tags (`og:title`, `og:description`), no `<link rel="canonical">`. Only `charset` and `viewport` are set.
-- âœ… **Title Tag** â€” `<title>Retirement Calculator</title>` is present and descriptive.
-- â¬œ **Structured Data** â€” Not applicable for a calculator tool; no content to mark up.
+- ❌ **Semantic HTML for Search** — Title is present and descriptive. Meta description is missing. Heading hierarchy lacks `<h2>` structure.
+- ❌ **Open Graph & Social Tags** — None.
+- ⬜ **Structured Data** — Optional for a calculator; reasonable to omit, but a `WebApplication` JSON-LD block would be appropriate.
+- ❌ **Technical SEO** — No `robots.txt`, no `sitemap.xml`, no canonical link tag.
+- ⚠️ **Performance as SEO** — Render-blocking Chart.js will hurt LCP. Untested.
+
+### Tier 1: SEO Operations (v4)
+
+The hub `stack.seo` field for this project is `"required"`, so these apply:
+
+- ❌ **Google Search Console** — Not configured (no verification meta, no DNS record evidence).
+- ❌ **Bing Webmaster Tools + IndexNow** — No IndexNow key file at root.
+- ❌ **Programmatic IndexNow Pings** — N/A without an SEO package; this is a hand-rolled static project.
+- ❌ **Pre-Launch Validation Gate** — No evidence of Rich Results Test run.
+- ❌ **Canonical SEO Implementation** — `@getdigitalos/seo` not used; no ADR documenting the deviation.
+
+### Tier 1: Observability & Diagnostics (v4.02)
+
+- ❌ **Privacy Analytics (Plausible)** — Not installed. `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` not set.
+- ❌ **Pre-Launch DNS + Email Diagnostic Gate** — No `launch-checklist.md` and no record of MXToolbox/Google Workspace Toolbox checks. Required for any custom domain at launch.
 
 ### Tier 1: Code Quality
 
-- âš ï¸ **Code Organization** â€” All logic is in a single `script.js` file (183 lines). Manageable for now but `calculateCapital()` is a 177-line monolith mixing calculation, data transformation, chart rendering, and DOM manipulation.
-- âš ï¸ **Separation of Concerns** â€” Inline styles in HTML break CSS separation. `onclick="calculateCapital()"` and `onclick="toggleTable('annual')"` use inline event handlers instead of `addEventListener`.
-- âœ… **Version Control** â€” Git repository with meaningful commit history.
-- âŒ **Testing** â€” No test files exist. No test framework configured. Core financial calculation logic is untested.
+- ⚠️ **Separation of Concerns** — CSS file is separate from JS, but `index.html` has 4 inline `style=""` attributes (lines 13, 14, 33, 38) and 3 inline `onclick="..."` handlers (lines 28, 173, 174). Mixed concerns.
+- ⚠️ **DRY** — Annual and monthly table-building blocks (`script.js:159-169`) are near-duplicates differing only in columns. Could be one helper.
+- ✅ **Semantic Naming** — `calculateCapital`, `formatCurrency`, `monthlyReturnRate`, etc., describe purpose.
+- ❌ **Mobile-First CSS** — No mobile base; desktop-only layout with `max-width: 600px` clipping the two-column flex.
 
-### Tier 1: DevOps
+### Tier 1: DevOps Basics
 
-- âœ… **Source Control** â€” Git repo with 5+ commits on `main` branch.
-- âš ï¸ **Deployment** â€” No deployment configuration (no CI/CD, no GitHub Actions, no hosting config). Project can be deployed by dropping files on any static host.
-- âœ… **Documentation** â€” Comprehensive `/docs` folder with architecture overview, spec, getting started guide, and roadmap.
+- ❌ **Automated Deployment** — `.github/workflows/deploy.yml` exists but is **broken**: empty `project-name`, references `npm run build` and `output-directory: dist` with no `package.json`/no build/no `dist/`. First push will fail.
+- ❌ **Preview Deployments** — Workflow does target `dev` branch but is non-functional for the reason above.
+- ⚠️ **Environment Separation** — Branch model is there (`main`/`dev`); deploy not actually working.
+- ❌ **Domain & DNS Management** — No custom domain documented. Hub registry has no `live_url`/`preview_url` for this project (the default `<project>.pages.dev` is implied but unconfirmed).
+- ✅ **Version Control** — Git with meaningful commit history on `main` (5+ commits).
+
+### Tier 1: UX Fundamentals
+
+- ❌ **Responsive Design** — See Critical #7.
+- ❌ **Error Prevention** — `required` only; no validation messages, no `min`/`max`, no inline feedback.
+- ⚠️ **Loading States** — Calculation is synchronous and fast, so loading UX is arguably moot — but there is no visual confirmation that "Calculate" succeeded other than the result text changing.
+- ✅ **Consistent Patterns** — The toggle buttons and form controls behave consistently within the page.
 
 ### Cross-Cutting: Privacy & Data Protection
 
-- âœ… **No Data Collection** â€” Calculator is entirely client-side. No cookies, no analytics, no tracking scripts, no data transmitted to any server. No privacy policy needed for current scope.
-- âš ï¸ **CDN Privacy** â€” Chart.js loaded from `cdn.jsdelivr.net` means user IP addresses are sent to jsDelivr's servers. This is a minor privacy consideration if operating under GDPR.
+- ✅ **No Data Collection** — Pure client-side; no analytics, cookies, or backend transmission today.
+- ⚠️ **CDN Privacy** — Chart.js from jsdelivr means user IPs go to a third party. Acceptable for a non-EU audience but should be acknowledged for GDPR. Switching to a pinned, self-hosted Chart.js bundle eliminates this and the version-drift risk.
 
 ### Cross-Cutting: AI/LLM Integration
 
-- â¬œ **Not Applicable** â€” No AI or LLM features in this project.
+- ⬜ **Not Applicable** — No AI features.
 
 ### Cross-Cutting: Dependency Management
 
-- âš ï¸ **No Lock File** â€” No `package.json` or lock file. Chart.js is loaded as `latest` from CDN, meaning the version can change without notice. Should pin to a specific version (e.g., `chart.js@4.4.1`).
-- âœ… **Minimal Dependencies** â€” Only one external dependency (Chart.js), keeping the attack surface small.
+- ❌ **No Lock File / No Version Pin** — Chart.js URL is `chart.js` (latest). Any breaking major release silently lands in production. Pin to `chart.js@4.4.7` (or current stable) and add SRI hash, or vendor the file.
+- ✅ **Minimal Dependencies** — One external runtime dep.
+
+### Cross-Cutting: Structural Integrity (v2.02+)
+
+- ⚠️ **Root-cause posture** — `Math.max(0, ...)` is used in several places (`script.js:64-66, 91`) to clamp negative balances. This masks the underlying issue that the simulation will go negative when capital is insufficient. The clamp should be paired with a "ran out of money in year N" surfaced to the user, not silently zeroed.
+- ⚠️ **Deploy workflow** — Broken from the day it was added (see Critical #2). Classic infra drift — the workflow was scaffolded against a Node-build assumption that doesn't fit this project. Either repair or remove.
+
+### Cross-Cutting: Project Hub Registration
+
+- ✅ **Registered in Project Hub** — Entry exists at `projects.json` for `C:/dev/business/financial-tools/retirementcapital`.
+- ❌ **Tier matches classification** — Hub `"tier": "unclassified"`; `PROJECT_CLASSIFICATION.md` says **Tier 1**. Re-classify and update the registry.
+- ✅ **Git remote configured** — Implied from `git remote -v` (`https://github.com/GetDigitalOS/retirementcapital.git`), though the hub `git_remote` field for this entry is **missing**. Add it.
+- ✅ **Dev port assigned** — `dev_port: 3207` (aligned-wealth range).
+- ⚠️ **Status is current** — `status: "development"` is plausible but the deploy workflow is broken, so "development" is the right state. Existing-state flags are stale (`claude_md: false` / `settings_json: false` but CLAUDE.md is present; `.claude/` is scaffolded with `settings.local.json.template` only — no actual `settings.json`).
 
 ## Recommendations (Prioritized)
 
-### ðŸ”´ Critical (Security/Compliance Risk)
+### 🔴 Critical (Security / Compliance / Will-not-deploy)
 
-1. **Add input validation** â€” Validate all inputs in `calculateCapital()` before processing. Reject negative values, zero years, and unreasonable rates (e.g., >100%). Add `min` attributes to HTML inputs. (`script.js:18-23`)
-2. **Pin Chart.js version** â€” Change CDN URL from `chart.js` to `chart.js@4.4.7` (or current stable) to prevent unexpected breaking changes. (`index.html:9`)
-3. **Add semantic landmarks** â€” Wrap content in `<main>`, add `<h2>` headings for Results, Chart, and Tables sections. (`index.html`)
+1. **Repair or replace the deploy workflow.** `.github/workflows/deploy.yml:11-14` references a Node build that does not exist. Either (a) switch to a static-files deploy (set `build-command: ""`, `output-directory: "."`, fill `project-name: "retirementcapital"`), or (b) add a real `package.json` with a `build` step and `dist/` output.
+2. **Reconcile Project Hub registration.** Update `registry/projects.json` entry: set `"tier": 1`, refresh `existing_state` (`claude_md: true`, `settings_json: false` until a real one is added), add `"git_remote": "https://github.com/GetDigitalOS/retirementcapital.git"`. Run `/scaffold` if the canonical flow is preferred.
+3. **Add input validation.** Reject `≤0` income, `≤0` years, rates outside a sane range (e.g., 0%-50%), and NaN. Surface a clear error message; do not call Chart.js with bad data. (`script.js:18-23`, `index.html:17-26`)
+4. **Wrap content in semantic landmarks and add section headings.** `<header><h1></header><main>...</main>` with `<h2>` for Results, Chart, and Tables. (`index.html`)
+5. **Add focus styles and ARIA state for toggle buttons.** `:focus-visible { outline: 2px solid currentColor; outline-offset: 2px }` in CSS; create the toggle buttons with `aria-pressed="true|false"` instead of injecting via `innerHTML`. (`styles.css`, `script.js:172-177`)
+6. **Add meta description, Open Graph, and canonical.** Description + `og:title`/`og:description`/`og:image` + `<link rel="canonical">`. (`index.html:4-10`)
+7. **Make it responsive.** Replace the `display: flex` outer container with a CSS grid that collapses to one column under 768px; remove `body { max-width: 600px }` (it clips the chart). Mobile-first base styles, then `@media (min-width: 768px)` for the side-by-side layout.
 
-### ðŸŸ¡ Important (Quality/Reliability Risk)
+### 🟡 Important (Quality/Reliability)
 
-4. **Add focus styles** â€” Add `:focus-visible` styles for buttons and inputs in `styles.css`. Ensure keyboard users can see where they are.
-5. **Fix render-blocking script** â€” Add `defer` attribute to Chart.js `<script>` tag or move it before `</body>`. (`index.html:9`)
-6. **Remove inline styles** â€” Move the 4 inline `style=""` attributes to CSS classes. (`index.html:13-14, 33, 38`)
-7. **Add meta description** â€” Add `<meta name="description" content="Calculate how much retirement capital you need...">` for SEO. (`index.html:5-6`)
-8. **Replace innerHTML with DOM APIs** â€” Use `document.createElement` / `textContent` for table generation to eliminate XSS surface. (`script.js:157-177`)
+8. **Pin Chart.js + add SRI.** Change `cdn.jsdelivr.net/npm/chart.js` to `cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.js` with `integrity` + `crossorigin="anonymous"`, and add `defer` to unblock rendering. (`index.html:9`)
+8. **Remove inline styles and inline event handlers.** Move the 4 inline `style=""` to CSS classes; replace `onclick=""` with `addEventListener` in `script.js`. (`index.html:13, 14, 28, 33, 38`; `script.js:173-174`)
+9. **Stop generating buttons via `innerHTML`.** Use `document.createElement`/`textContent` for the toggle buttons and table cells (`script.js:160, 168, 172`). Today's data is internal, but the pattern is a foot-gun the moment external data enters.
+10. **Surface "ran out of money" instead of clamping.** If `currentBalance` would go negative, display the year/month at which the simulation depletes rather than zeroing silently. (`script.js:64-66`)
+11. **Add a launch checklist.** `docs/planning/launch-checklist.md` covering Lighthouse target, Rich Results Test, MXToolbox check (if a custom domain is used), and a manual screen-reader pass.
+12. **Add design tokens.** Even at Tier 1, a few CSS custom properties (`--color-action`, `--color-text`, `--space-1`-`-4`) replace the magic hex values and pave the way for Tier 2 work.
 
-### ðŸŸ¢ Recommended (Best Practice)
+### 🟢 Recommended (Best Practice)
 
-9. **Add basic tests** â€” Extract calculation logic into a pure function and add unit tests (even a simple HTML-based test runner would suffice for this project).
-10. **Add responsive breakpoints** â€” Add `@media` queries for mobile-friendly layout of the chart and tables.
-11. **Add `<canvas>` fallback** â€” Provide a text alternative or `aria-label` for the chart canvas element.
-12. **Move event handlers out of HTML** â€” Replace `onclick="..."` with `addEventListener` calls in `script.js`.
+13. **Add Plausible.** `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` is meaningless without a framework, but a one-line `<script defer data-domain="..." src="https://plausible.io/js/script.js">` satisfies the Tier 1 v4 observability band and adds no cookies.
+14. **Add unit tests for the math.** Extract `calculateCapital` into a pure function (`income, returnRate, inflationRate, years → { totalCapital, monthlyTable, annualTable }`) and add a tiny test file. A `package.json` + Vitest is overkill; even a `tests.html` runner is enough at Tier 1.
+15. **Add a `_headers` file for Cloudflare Pages.** CSP (locked to `'self'` + jsdelivr), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` minimal.
+16. **Add `<canvas>` text alternative.** `aria-label="Line chart: annual income and account balance across retirement years"` on `<canvas id="chart">` and a text summary nearby for screen-reader users.
+17. **Reduced-motion support.** Initialize Chart.js with `animation: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : undefined`.
+18. **Pre-pin GSC + Bing verification meta tags** if a custom domain is on the roadmap.
 
 ## Next Review
 
-Recommended next compliance check: **2026-06-22** (quarterly, or before any public deployment)
+Recommended next compliance check: **2026-08-23** (quarterly), or immediately before the first public deploy — whichever comes first.
